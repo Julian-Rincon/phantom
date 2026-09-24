@@ -1,0 +1,24 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Phantom
+GenericName=Multi-agent coding workspace
+Comment=OpenCode, Claude Code y Hermes en una interfaz local
+Exec=@PHANTOM_ROOT@/bin/phantom-ui-open.sh
+TryExec=@PHANTOM_ROOT@/bin/phantom-ui-open.sh
+Icon=phantom-ui
+Terminal=false
+StartupNotify=false
+DBusActivatable=false
+X-KDE-StartupNotify=false
+# Wayland app_id of the Chromium/Brave --app window opened by bin/open-codeg.sh;
+# lets Plasma group the window under this launcher and its icon.
+StartupWMClass=brave-127.0.0.1__-Default
+Categories=Development;IDE;
+Keywords=AI;Agents;OpenCode;Claude;Hermes;Coding;Phantom;
+Actions=Open;
+
+[Desktop Action Open]
+Name=Abrir Phantom
+Exec=@PHANTOM_ROOT@/bin/phantom-ui-open.sh
+Icon=phantom-ui

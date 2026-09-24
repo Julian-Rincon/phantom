@@ -1,0 +1,21 @@
+[Unit]
+Description=Phantom local multi-agent coding workspace
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/codeg/server.env
+Environment=HOME=%h
+Environment=LANG=C.UTF-8
+Environment=PATH=%h/.npm-global/bin:%h/.bun/bin:%h/.local/bin:%h/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/bin
+WorkingDirectory=%h
+ExecStart=%h/.local/bin/codeg-server --supervise
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=30
+KillMode=mixed
+UMask=0077
+
+[Install]
+WantedBy=default.target

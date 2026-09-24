@@ -1,0 +1,66 @@
+# Isolated sandbox for external testers of Phantom / codeg.
+#
+# This is intentionally NOT the upstream codeg/docker-compose.yml (that file
+# publishes the port on all interfaces and is left unmodified). This compose
+# file builds the same image but keeps the container reachable only from the
+# host running it, with no host project or home-directory mounts and no
+# default token.
+#
+# Usage:
+#   cp .env.example .env
+#   # edit .env: set CODEG_TOKEN=$(openssl rand -hex 32)
+#   docker compose up --build
+#   # or: podman compose up --build
+#
+# The UI is then reachable at http://127.0.0.1:3080 (never from other hosts),
+# and every request still needs the Authorization: Bearer <CODEG_TOKEN> header.
+services:
+  codeg:
+    build:
+      context: ./codeg
+      dockerfile: Dockerfile
+    environment:
+      # Fails the container at startup if unset — there is no default token,
+      # on purpose: an empty CODEG_TOKEN makes codeg-server fail closed (401)
+      # rather than silently disable auth (see codeg/src-tauri/src/web/auth.rs).
+      CODEG_TOKEN: ${CODEG_TOKEN:?set CODEG_TOKEN in .env, e.g. via `openssl rand -hex 32`}
+      CODEG_PORT: "3080"
+      # Container-internal only: codeg-server must bind all interfaces INSIDE
+      # the container's own network namespace for the published port mapping
+      # below to reach it. This does not expose the service beyond the host:
+      # the "127.0.0.1:3080:3080" mapping is what actually limits reachability
+      # to loopback on the machine running Docker/Podman.
+      CODEG_HOST: "0.0.0.0"
+      # No dev-server port bridge in this sandbox: nothing beyond the UI/API
+      # port is published, so there is nothing for a bridge to reach.
+      CODEG_BRIDGE_PORTS: "off"
+    ports:
+      # Bind explicitly to loopback — never "3080:3080", which would publish
+      # on all host interfaces.
+      - "127.0.0.1:3080:3080"
+    volumes:
+      # Named volume only. No bind mount of the host home or of any existing
+      # Codeg data directory: this sandbox starts with zero imported sessions.
+      - codeg-sandbox-data:/data
+      # Optional: mount a throwaway demo folder read-only if a tester needs a
+      # project to point an agent at. Left commented out by default.
+      # - ./demo-project:/projects/demo:ro
+    restart: "no"
+    healthcheck:
+      # /api/health requires the same bearer token as every other endpoint
+      # (see codeg/src-tauri/src/web/auth.rs); curl is present in the
+      # node:24-bookworm-slim runtime stage of the Dockerfile. `$$` defers
+      # expansion to the container shell, and the header goes through curl's
+      # stdin config so the token never lands in the process argv.
+      test:
+        [
+          "CMD-SHELL",
+          "printf 'header = \"Authorization: Bearer %s\"\\n' \"$$CODEG_TOKEN\" | curl -fsS -X POST -K - -o /dev/null http://127.0.0.1:3080/api/health || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  codeg-sandbox-data:

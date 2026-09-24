@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APPLICATIONS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+NOTIFY_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/knotifications6"
+ICON_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/scalable/apps"
+DROPIN_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/codeg.service.d"
+DESKTOP_ID="phantom-ui.desktop"
+LEGACY_ID="codeg-multiagent.desktop"
+
+install -d -m 755 "$APPLICATIONS_DIR" "$NOTIFY_DIR" "$ICON_DIR" "$DROPIN_DIR"
+# The launcher points at this checkout, wherever it was cloned.
+sed "s#@PHANTOM_ROOT@#$ROOT#g" "$ROOT/integrations/plasma/$DESKTOP_ID" >"$APPLICATIONS_DIR/$DESKTOP_ID"
+chmod 644 "$APPLICATIONS_DIR/$DESKTOP_ID"
+install -m 644 "$ROOT/integrations/plasma/phantom-ui.notifyrc" "$NOTIFY_DIR/phantom-ui.notifyrc"
+install -m 644 "$ROOT/codeg/public/phantom-ui.svg" "$ICON_DIR/phantom-ui.svg"
+
+# Keep one visible launcher. The old entry was created by the previous local
+# setup; keep a one-time .legacy copy instead of deleting it outright.
+if [[ -e "$APPLICATIONS_DIR/$LEGACY_ID" ]]; then
+  mv "$APPLICATIONS_DIR/$LEGACY_ID" "$APPLICATIONS_DIR/$LEGACY_ID.legacy"
+fi
+
+# Resource weights and crash-loop limit for the service (see the file header).
+# Picked up on the next service (re)start; nothing is restarted from here.
+install -m 644 "$ROOT/integrations/systemd/phantom-desktop.conf" "$DROPIN_DIR/phantom-desktop.conf"
+systemctl --user daemon-reload
+
+if command -v desktop-file-validate >/dev/null 2>&1; then
+  desktop-file-validate "$APPLICATIONS_DIR/$DESKTOP_ID"
+fi
+if command -v update-desktop-database >/dev/null 2>&1; then
+  update-desktop-database "$APPLICATIONS_DIR"
+fi
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+  gtk-update-icon-cache -f "${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor" >/dev/null 2>&1 || true
+fi
+
+printf 'Phantom Plasma integration installed\n'
+printf '  launcher: %s\n' "$APPLICATIONS_DIR/$DESKTOP_ID"
+printf '  notify:   %s\n' "$NOTIFY_DIR/phantom-ui.notifyrc"
+printf '  icon:     %s\n' "$ICON_DIR/phantom-ui.svg"
+printf '  systemd:  %s\n' "$DROPIN_DIR/phantom-desktop.conf"

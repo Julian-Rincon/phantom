@@ -1,0 +1,29 @@
+[Global]
+IconName=phantom-ui
+Name=Phantom
+Comment=Agentes de programación y coordinación multiagente
+DesktopEntry=phantom-ui.desktop
+
+[Event/turn_complete]
+Name=Tarea completada
+Comment=Un agente terminó su turno
+Action=Popup
+Urgency=Low
+
+[Event/error]
+Name=Error de agente
+Comment=Un agente necesita atención
+Action=Popup
+Urgency=Normal
+
+[Event/permission_request]
+Name=Aprobación pendiente
+Comment=Un agente necesita permiso para continuar
+Action=Popup
+Urgency=High
+
+[Event/question_request]
+Name=Pregunta de agente
+Comment=Un agente está esperando una respuesta
+Action=Popup
+Urgency=Normal

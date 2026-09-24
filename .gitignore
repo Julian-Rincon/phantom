@@ -1,0 +1,62 @@
+# Phantom UI Azul General — wrapper repo (not the codeg/ fork)
+#
+# codeg/ is a git submodule pointing at the Codeg fork (Apache-2.0); its
+# history lives in that repository, not in this one.
+
+# Local secrets and runtime configuration. Only the template stays tracked.
+.env
+*.env
+!.env.example
+server.env
+*.env.local
+
+# Databases (Codeg's own store, OpenCode/Hermes imports, SQLite sidecar files)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Reports produced by scripts/final-review.sh (Claude Code read-only audits)
+/reports/
+
+# Local autonomous-memory / capture tool state (not project source)
+/.remember/
+
+# Local Impeccable tool cache (per-session hook cache, not project source)
+/.impeccable/
+
+# Local build/export output referenced by graphify-style tooling
+graphify-out/
+
+# Node dependencies (reinstalled via pnpm, never committed)
+node_modules/
+
+# Backups written by install scripts (install-local-build.sh, install-phantom-ui-web.sh)
+*.backup-*
+
+# Editor / OS junk
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Claude Code project-local state (not part of the deliverable)
+.claude/
+
+# Key material and token-shaped files — never commit real secrets.
+# Kept narrow on purpose: it must not swallow legitimate scripts whose name
+# happens to contain "token" (e.g. anything under scripts/ or bin/).
+*.pem
+*.key
+*.p12
+*.pfx
+*token*.env
+*token*.json
+*token*.txt
+!.env.example

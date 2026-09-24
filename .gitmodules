@@ -1,0 +1,4 @@
+[submodule "codeg"]
+	path = codeg
+	url = https://github.com/Julian-Rincon/codeg.git
+	branch = local/opencode-v2-history
