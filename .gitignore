@@ -63,3 +63,7 @@ node_modules/
 
 # Scratch UI build used for visual checks
 /.uibuild/
+
+# Python bytecode
+__pycache__/
+.pytest_cache/

@@ -1,0 +1,25 @@
+# phantom-voice: dedicated venv at ~/.local/share/phantom/voice-venv
+# (kept separate from ~/.local/share/brag/{chatterbox,venv} which other
+# tools depend on and must not be modified).
+
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+pydantic>=2.7
+
+faster-whisper>=1.0
+av>=12.0
+
+kokoro-onnx>=0.4
+soundfile>=0.12
+numpy>=1.26
+
+# CUDA runtime libs faster-whisper's ctranslate2 backend loads via
+# LD_LIBRARY_PATH (see voice/run-phantom-voice.sh). Torch itself is not
+# needed: faster-whisper uses ctranslate2, not torch, for inference.
+nvidia-cublas-cu12
+nvidia-cudnn-cu12
+
+# Test-only, but small enough to keep in the same venv/requirements file.
+pytest>=8.0
+httpx>=0.27

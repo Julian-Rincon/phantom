@@ -1,0 +1,29 @@
+[Unit]
+Description=phantom-voice local speech service (STT/TTS, loopback only)
+Wants=network.target
+After=network.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+Environment=HOME=%h
+Environment=PHANTOM_VOICE_PORT=3091
+WorkingDirectory=%h/Documentos/Proyectos/agent-control-center/voice
+ExecStart=%h/Documentos/Proyectos/agent-control-center/voice/run-phantom-voice.sh
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+KillMode=mixed
+UMask=0077
+
+# Same politeness as codeg.service's phantom-desktop.conf drop-in: the
+# desktop and foreground apps keep priority over this background model
+# server, and it throttles/reclaims instead of pushing the session into swap.
+CPUWeight=50
+IOWeight=50
+Nice=5
+MemoryHigh=6G
+
+[Install]
+WantedBy=default.target
