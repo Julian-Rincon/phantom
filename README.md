@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="brand/phantom-logo-480.png" width="240" alt="Logo de Phantom: una figura encapuchada azul dentro de un anillo luminoso">
+</p>
+
 # Phantom
 
 ![Estado](https://img.shields.io/badge/estado-local%2Falpha-blue)
@@ -177,6 +181,16 @@ docker compose -f docker-compose.yml config                     # debe fallar: f
 - El acento visual global cambia según el modelo seleccionado en la conexión activa; `Azul General` es el fallback estable para modelos desconocidos.
 - La delegación entre agentes está habilitada con profundidad máxima `2`; `codeg-mcp` permite que cualquier agente sea lead y delegue a los demás mediante menciones `@agente`.
 - No existe un agente maestro permanente: la palabra *lead* es un rol de la tarea, no una jerarquía global. Política completa en [`ARCHITECTURE.md`](ARCHITECTURE.md) y [`AGENTS.md`](AGENTS.md); flujo paralelo y reglas de worktrees en [`PARALLEL-WORKFLOW.md`](PARALLEL-WORKFLOW.md).
+
+## Modelos: métricas reales y delegación automática
+
+Phantom no recomienda modelos por marketing: mide tu propio historial. Al sincronizar el uso (**Uso → Sincronizar**), cada turno registra latencia, tokens, caché y cuántas llamadas a herramientas hizo y fallaron, por categoría (editar, explorar, shell, web, subagentes). Con eso:
+
+- el selector de modelo muestra, por modelo, `s/turno · tok/s · % errores · contexto` y las categorías donde es el mejor medido; con pocos datos dice "Sin datos suficientes" en vez de inventar;
+- la pestaña **Uso → Modelos** muestra la tabla completa y el mejor por categoría con su muestra (`n`);
+- el ranking usa el límite superior de Wilson al 95 %, así 0 errores en 30 usos no le gana a 2 en 600;
+- la disponibilidad sale en vivo de la lista que anuncia cada agente, y cada agente conserva **sus propios modelos**: los de Claude Code no se mezclan con los de OpenCode ni con los de Hermes;
+- `delegate_to_agent` recibe la guía medida (pares agente/modelo) y un parámetro `model` opcional, para que el agente principal delegue sola la parte en la que otro par agente/modelo mide mejor y luego integre el resultado.
 
 ## Historial
 

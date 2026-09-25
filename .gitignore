@@ -60,3 +60,6 @@ node_modules/
 *token*.json
 *token*.txt
 !.env.example
+
+# Scratch UI build used for visual checks
+/.uibuild/

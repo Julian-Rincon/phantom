@@ -4,17 +4,23 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APPLICATIONS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 NOTIFY_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/knotifications6"
-ICON_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/scalable/apps"
+ICON_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor"
 DROPIN_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/codeg.service.d"
 DESKTOP_ID="phantom-ui.desktop"
 LEGACY_ID="codeg-multiagent.desktop"
 
-install -d -m 755 "$APPLICATIONS_DIR" "$NOTIFY_DIR" "$ICON_DIR" "$DROPIN_DIR"
+install -d -m 755 "$APPLICATIONS_DIR" "$NOTIFY_DIR" "$DROPIN_DIR"
 # The launcher points at this checkout, wherever it was cloned.
 sed "s#@PHANTOM_ROOT@#$ROOT#g" "$ROOT/integrations/plasma/$DESKTOP_ID" >"$APPLICATIONS_DIR/$DESKTOP_ID"
 chmod 644 "$APPLICATIONS_DIR/$DESKTOP_ID"
 install -m 644 "$ROOT/integrations/plasma/phantom-ui.notifyrc" "$NOTIFY_DIR/phantom-ui.notifyrc"
-install -m 644 "$ROOT/codeg/public/phantom-ui.svg" "$ICON_DIR/phantom-ui.svg"
+# Raster emblem from brand/phantom-logo.png at the standard hicolor sizes. The
+# old vector placeholder in scalable/ would outrank them, so it is removed.
+for size in 32 64 192 256 512; do
+  install -d -m 755 "$ICON_ROOT/${size}x${size}/apps"
+  install -m 644 "$ROOT/codeg/public/phantom-emblem-$size.png" "$ICON_ROOT/${size}x${size}/apps/phantom-ui.png"
+done
+rm -f "$ICON_ROOT/scalable/apps/phantom-ui.svg"
 
 # Keep one visible launcher. The old entry was created by the previous local
 # setup; keep a one-time .legacy copy instead of deleting it outright.
@@ -40,5 +46,5 @@ fi
 printf 'Phantom Plasma integration installed\n'
 printf '  launcher: %s\n' "$APPLICATIONS_DIR/$DESKTOP_ID"
 printf '  notify:   %s\n' "$NOTIFY_DIR/phantom-ui.notifyrc"
-printf '  icon:     %s\n' "$ICON_DIR/phantom-ui.svg"
+printf '  icon:     %s\n' "$ICON_ROOT/<size>/apps/phantom-ui.png"
 printf '  systemd:  %s\n' "$DROPIN_DIR/phantom-desktop.conf"
