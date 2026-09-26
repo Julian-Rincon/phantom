@@ -28,6 +28,21 @@ if [[ -e "$APPLICATIONS_DIR/$LEGACY_ID" ]]; then
   mv "$APPLICATIONS_DIR/$LEGACY_ID" "$APPLICATIONS_DIR/$LEGACY_ID.legacy"
 fi
 
+# Open the Phantom window at login (XDG autostart; Plasma runs it once the
+# session is up, and open-codeg.sh waits for the service to answer first).
+# PHANTOM_AUTOSTART=0 removes it.
+AUTOSTART_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
+if [[ "${PHANTOM_AUTOSTART:-1}" == "1" ]]; then
+  install -d -m 755 "$AUTOSTART_DIR"
+  sed -e "s#@PHANTOM_ROOT@#$ROOT#g" \
+    -e '/^\[Desktop Action /,$d' \
+    -e 's/^Actions=.*$/X-KDE-autostart-phase=2/' \
+    "$ROOT/integrations/plasma/$DESKTOP_ID" >"$AUTOSTART_DIR/$DESKTOP_ID"
+  chmod 644 "$AUTOSTART_DIR/$DESKTOP_ID"
+else
+  rm -f "$AUTOSTART_DIR/$DESKTOP_ID"
+fi
+
 # Resource weights and crash-loop limit for the service (see the file header).
 # Picked up on the next service (re)start; nothing is restarted from here.
 install -m 644 "$ROOT/integrations/systemd/phantom-desktop.conf" "$DROPIN_DIR/phantom-desktop.conf"
@@ -48,3 +63,4 @@ printf '  launcher: %s\n' "$APPLICATIONS_DIR/$DESKTOP_ID"
 printf '  notify:   %s\n' "$NOTIFY_DIR/phantom-ui.notifyrc"
 printf '  icon:     %s\n' "$ICON_ROOT/<size>/apps/phantom-ui.png"
 printf '  systemd:  %s\n' "$DROPIN_DIR/phantom-desktop.conf"
+printf '  autostart: %s\n' "$([[ "${PHANTOM_AUTOSTART:-1}" == "1" ]] && echo "$AUTOSTART_DIR/$DESKTOP_ID" || echo off)"
