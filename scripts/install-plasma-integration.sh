@@ -46,6 +46,7 @@ fi
 # Resource weights and crash-loop limit for the service (see the file header).
 # Picked up on the next service (re)start; nothing is restarted from here.
 install -m 644 "$ROOT/integrations/systemd/phantom-desktop.conf" "$DROPIN_DIR/phantom-desktop.conf"
+install -m 644 "$ROOT/integrations/systemd/graphical-session.conf" "$DROPIN_DIR/graphical-session.conf"
 systemctl --user daemon-reload
 
 if command -v desktop-file-validate >/dev/null 2>&1; then
