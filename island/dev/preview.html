@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Phantom Island — preview</title>
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: radial-gradient(ellipse at 50% -10%, #171a22 0%, #0a0b0e 55%, #060708 100%);
+        font: 13px system-ui, sans-serif;
+        color: #e7e9ee;
+      }
+      #stage {
+        position: relative;
+        height: 320px;
+        display: flex;
+        justify-content: center;
+      }
+      #panel {
+        position: absolute;
+        top: 340px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 760px;
+        max-width: calc(100vw - 32px);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      h1 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0 0 2px;
+        color: #f5f6f8;
+      }
+      .hint {
+        font-size: 11.5px;
+        color: #8e939c;
+        margin-bottom: 4px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      button.trigger {
+        appearance: none;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.06);
+        color: #e7e9ee;
+        border-radius: 8px;
+        padding: 7px 12px;
+        font: 500 12px system-ui, sans-serif;
+        cursor: pointer;
+        transition: background 0.15s ease-out, border-color 0.15s ease-out;
+      }
+      button.trigger:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.24);
+      }
+      button.trigger:active {
+        transform: translateY(1px);
+      }
+      #log {
+        margin-top: 8px;
+        font: 11px var(--mono, ui-monospace, monospace);
+        color: #6b7079;
+        white-space: pre-wrap;
+        max-height: 120px;
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage"><div id="root"></div></div>
+    <div id="panel">
+      <div>
+        <h1>Phantom Island — arnés de previsualización</h1>
+        <div class="hint">
+          Corre con <code>npm run dev</code> y abre <code>/dev/preview.html</code>. El puente Tauri está
+          ausente (IS_TAURI = false), así que cada botón manipula el estado directamente — esto es lo
+          que el equipo usa para verificar el personaje y cada vista sin la app nativa.
+        </div>
+      </div>
+      <div class="row" id="buttons"></div>
+      <div id="log"></div>
+    </div>
+    <script type="module" src="./preview.ts"></script>
+  </body>
+</html>

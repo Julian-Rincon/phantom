@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "tiny-text",
+        "value": "*",
+        "files": [
+          "dev/preview.html"
+        ],
+        "createdAt": "2026-10-01T18:59:17.661Z",
+        "reason": "internal dev-only debug harness (not shipped UI), matches existing dev/upload-preview.html tiny-text convention"
+      }
+    ]
+  }
+}

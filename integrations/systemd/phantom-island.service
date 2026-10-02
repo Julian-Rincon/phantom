@@ -1,0 +1,28 @@
+[Unit]
+Description=Phantom Island (live agent island at the top of the screen)
+Documentation=file://%h/Documentos/Proyectos/agent-control-center/island/README.md
+# Lives and dies with the Plasma session; supervised so a crash is restarted.
+PartOf=graphical-session.target
+After=plasma-workspace.target codeg.service
+Wants=codeg.service
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+Type=simple
+# Wait for the X (XWayland) socket and for Phantom to answer. graphical-session
+# can be reached before the display is usable on Plasma 6.
+ExecStartPre=%h/.local/bin/phantom-island-wait-session
+TimeoutStartSec=120
+ExecStart=%h/.local/bin/phantom-island
+# Quitting from the tray exits 0 and is respected; only crashes restart.
+Restart=on-failure
+RestartSec=5
+Nice=5
+CPUWeight=50
+IOWeight=50
+MemoryHigh=1G
+UMask=0077
+
+[Install]
+WantedBy=plasma-workspace.target

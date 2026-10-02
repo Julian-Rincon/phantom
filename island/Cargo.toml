@@ -1,0 +1,18 @@
+[workspace]
+members = ["src-tauri"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.1"
+edition = "2021"
+license = "MIT"
+
+# The hook relay (hook/) is retired on Linux: Phantom already sees every
+# agent session directly over its WebSocket, so there is nothing left to
+# relay from ~/.claude/settings.json hooks. See phantom.rs.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
