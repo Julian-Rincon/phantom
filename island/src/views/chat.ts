@@ -2,6 +2,7 @@
 
 import { h, svg, clear } from "./dom";
 import { ICONS } from "./icons";
+import { Bridge } from "../core/bridge";
 import { Sound } from "../core/sound";
 import { State, type ChatMessage } from "../core/state";
 import { t } from "../core/i18n";
@@ -94,7 +95,14 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       mic.classList.add("on");
       Sound.play("open");
     } catch (err) {
-      console.error("[phantom-island] mic permission denied", err);
+      // Never fail silently: the user pressed a button and expects something.
+      const why = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      void Bridge.log(`voice: could not start — ${why}`);
+      mic.classList.remove("on");
+      Sound.play("error");
+      State.noteMessage = t("chat.voice.failed", { why });
+      State.view = "note";
+      State.notify();
     }
   }
 

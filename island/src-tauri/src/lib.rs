@@ -365,7 +365,11 @@ async fn voice_tts(text: String, lang: String) -> Result<Value, String> {
     if !resp.status().is_success() {
         return Err(format!("voice_tts failed: {}", resp.status()));
     }
-    resp.json().await.map_err(|e| e.to_string())
+    // phantom-voice answers with the WAV itself (audio/wav), not JSON; the
+    // frontend plays it from a data: URL.
+    use base64::Engine as _;
+    let wav = resp.bytes().await.map_err(|e| e.to_string())?;
+    Ok(json!({ "wavBase64": base64::engine::general_purpose::STANDARD.encode(&wav) }))
 }
 
 // ── Settings window ───────────────────────────────────────────────────────
@@ -467,6 +471,7 @@ pub fn run() {
 
             let layer = island::init_layer_shell(&handle, &loaded.screen);
             if let Some(win) = island::window(&handle) {
+                island::enable_microphone(&win);
                 island::make_non_activating(&win);
                 island::apply_geometry(&handle, &loaded.screen, false);
                 let _ = win.show();

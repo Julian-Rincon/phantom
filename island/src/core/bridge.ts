@@ -97,7 +97,8 @@ export const Bridge = {
   // ── Voice (local speech service) ────────────────────────────────────────────
   voiceHealth: () => call<boolean>("voice_health"),
   /** One captured utterance → transcript. */
-  voiceStt: (bytes: number[], mime: string) => callOrThrow<{ text: string }>("voice_stt", { bytes, mime }),
+  voiceStt: (bytes: number[], mime: string) =>
+    callOrThrow<{ text: string; language?: string; duration_ms?: number }>("voice_stt", { bytes, mime }),
   /** One sentence → spoken audio (base64 WAV), played by the caller so barge-in can cut it off. */
   voiceTts: (text: string, lang: string) => callOrThrow<{ wavBase64: string }>("voice_tts", { text, lang }),
 };

@@ -6,6 +6,7 @@ import { Bridge } from "../core/bridge";
 import { State } from "../core/state";
 import { getLang } from "../core/i18n";
 import { computeRms, createInitialVadState, stepVad, type VadState } from "./vad";
+import { shouldSendUtterance } from "./utterance-filter";
 
 let audioCtx: AudioContext | null = null;
 let analyser: AnalyserNode | null = null;
@@ -52,7 +53,22 @@ function tick() {
 /** Starts continuous mic listening. Resolves once permission is granted and
  *  capture is live; rejects (caller should hide the voice UI) otherwise. */
 export async function startVoice(handler: (text: string) => void): Promise<void> {
+  try {
+    await openCapture(handler);
+  } catch (err) {
+    stopVoice(); // release whatever was opened before the failure
+    throw err;
+  }
+}
+
+async function openCapture(handler: (text: string) => void): Promise<void> {
   onUtterance = handler;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("este WebView no expone el micrófono (mediaDevices)");
+  }
+  if (typeof MediaRecorder === "undefined") {
+    throw new Error("este WebView no soporta MediaRecorder");
+  }
   stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
   audioCtx = new Ctor();
@@ -73,10 +89,19 @@ export async function startVoice(handler: (text: string) => void): Promise<void>
     void (async () => {
       try {
         const bytes = await blobToBytes(blob);
-        const { text } = await Bridge.voiceStt(bytes, mime);
-        if (text.trim()) onUtterance?.(text.trim());
+        const result = await Bridge.voiceStt(bytes, mime);
+        const text = result.text.trim();
+        const real = shouldSendUtterance({
+          text,
+          language: result.language ?? "",
+          durationMs: result.duration_ms ?? 0,
+          agentBusy: State.stateOverride === "thinking" || speaking,
+          expectedLang: getLang() === "es" ? "es" : "en",
+        });
+        if (real) onUtterance?.(text);
+        else if (text) void Bridge.log(`voice: ignored noise "${text.slice(0, 40)}"`);
       } catch (err) {
-        console.error("[phantom-island] voice_stt failed", err);
+        void Bridge.log(`voice: transcription failed — ${err instanceof Error ? err.message : String(err)}`);
       }
     })();
   };
@@ -131,7 +156,7 @@ async function drainQueue() {
       void audio.play().catch(() => resolve());
     });
   } catch (err) {
-    console.error("[phantom-island] voice_tts failed", err);
+    void Bridge.log(`voice: speech failed — ${err instanceof Error ? err.message : String(err)}`);
   } finally {
     currentAudio = null;
     speaking = false;

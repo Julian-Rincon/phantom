@@ -528,3 +528,38 @@ mod x11 {
         let _ = x.conn.flush();
     }
 }
+
+/// WebKitGTK ships with WebRTC/media capture off and denies every
+/// `getUserMedia` permission request unless the embedder answers it, so the
+/// chat's voice ("Live") mode could never open the mic. Turn media streams on
+/// for the island webview and grant microphone requests only — the page is
+/// our own bundled frontend; camera and screen capture stay denied.
+#[cfg(target_os = "linux")]
+pub fn enable_microphone(win: &WebviewWindow) {
+    let _ = win.with_webview(|wv| {
+        use webkit2gtk::{PermissionRequestExt, SettingsExt, UserMediaPermissionRequest, UserMediaPermissionRequestExt, WebViewExt};
+        use gtk::glib::object::Cast;
+        let view = wv.inner();
+        if let Some(settings) = WebViewExt::settings(&view) {
+            settings.set_enable_media_stream(true);
+            settings.set_enable_mediasource(true);
+        }
+        view.connect_permission_request(|_, request| {
+            let Some(media) = request.downcast_ref::<UserMediaPermissionRequest>() else {
+                return false; // not ours to answer: WebKit's default (deny)
+            };
+            let audio_only = media.is_for_audio_device() && !media.is_for_video_device();
+            if audio_only {
+                request.allow();
+                crate::log::line("voice: microphone granted to the island");
+            } else {
+                request.deny();
+                crate::log::line("voice: denied a non-audio media request");
+            }
+            true
+        });
+    });
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn enable_microphone(_win: &WebviewWindow) {}
