@@ -9,7 +9,12 @@ STAMP=$(date +%Y%m%d-%H%M%S)
 export PATH="$HOME/.cargo/bin:$PATH"
 cd "$SRC"
 
-cargo build --release --no-default-features --bin codeg-server --bin codeg-mcp
+# Since Codeg 0.33 every standalone binary sits behind its own feature, and
+# the computer-use helper is a separate binary codeg-server looks for beside
+# itself.
+cargo build --release --no-default-features \
+  --features server-bin,mcp-bin,computer-helper \
+  --bin codeg-server --bin codeg-mcp --bin codeg-computer-helper
 
 # First install (or an updated unit in the repo): put the user unit in place
 # before stopping it, so `systemctl stop` has something to act on.
@@ -30,7 +35,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for name in codeg-server codeg-mcp; do
+for name in codeg-server codeg-mcp codeg-computer-helper; do
   test -x "$SRC/target/release/$name"
   if test -e "$DEST_BIN/$name"; then
     cp -p "$DEST_BIN/$name" "$DEST_BIN/$name.backup-$STAMP"
