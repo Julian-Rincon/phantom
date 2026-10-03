@@ -10,7 +10,7 @@ export interface LimitAction {
   kind: LimitActionKind;
   label: string;
   /** Present only for "continue" / "chooseOther" — who to hand off to. */
-  target?: { agent: string; model: string };
+  target?: { agentType: string; model: string };
 }
 
 export interface LimitCard {
@@ -27,15 +27,15 @@ export function buildLimitCard(info: LimitInfo): LimitCard {
   if (info.successor) {
     actions.push({
       kind: "continue",
-      label: t("limit.continueWith", { agent: `${info.successor.agent} · ${info.successor.model}` }),
-      target: { agent: info.successor.agent, model: info.successor.model },
+      label: t("limit.continueWith", { agent: info.successor.agent }),
+      target: { agentType: info.successor.agentType, model: info.successor.model },
     });
   }
   if (info.runnerUp) {
     actions.push({
       kind: "chooseOther",
       label: t("limit.chooseOther"),
-      target: { agent: info.runnerUp.agent, model: info.runnerUp.model },
+      target: { agentType: info.runnerUp.agentType, model: info.runnerUp.model },
     });
   }
   actions.push({ kind: "wait", label: t("limit.wait") });

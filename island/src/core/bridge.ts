@@ -122,6 +122,8 @@ export interface PhantomSession {
 export interface PhantomSuccessorCandidate {
   agentType: string;
   model: string;
+  /** Display label from the scorecard, e.g. "opencode/Space Bunny Free". */
+  label?: string;
   reason: string;
 }
 
@@ -207,6 +209,7 @@ export interface LimitEventPayload {
   scope: "account" | "model";
   message: string;
   successor: PhantomSuccessorCandidate | null;
+  runnerUp?: PhantomSuccessorCandidate | null;
 }
 
 export interface ChatDeltaPayload {

@@ -134,8 +134,18 @@ reduced fidelity — exact regex parity is not guaranteed). Payload:
   scope: "account" | "model",
   message: string,
   successor: PhantomSuccessorCandidate | null,  // from phantom_successor, pre-fetched
+  runnerUp: PhantomSuccessorCandidate | null,   // its runner_up, for "Elegir otro"
 }
+// PhantomSuccessorCandidate = { agentType, model, label, reason } — camelCase
+// here although phantom_successor answers in snake_case; `agentType` (not the
+// label) is what phantom_handoff needs.
 ```
+
+Phantom's own event payloads are snake_case (`text`, `conversation_id`,
+`request_id`, `tool_call`, `option_id`, `parent_tool_use_id`). The
+`phantom://event` `data` object passes them through verbatim; everything the
+island emits under its own name (`permission-request`, `limit`, `connection`)
+is normalised to camelCase in `phantom.rs`.
 
 ## New: session/event feed (replaces Claude-Code hooks)
 

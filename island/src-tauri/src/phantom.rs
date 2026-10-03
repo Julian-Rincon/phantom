@@ -632,7 +632,12 @@ async fn emit_mapped(app: &AppHandle, state: &Arc<PhantomState>, connection_id: 
         // Keep conversation/folder/model in sync from events that announce them.
         if let Some(kind) = envelope.get("type").and_then(Value::as_str) {
             if kind == "conversation_linked" {
-                entry.conversation_id = envelope.get("conversationId").and_then(Value::as_i64).map(|v| v as i32);
+                // The event is snake_case upstream (`conversation_id`).
+                entry.conversation_id = envelope
+                    .get("conversation_id")
+                    .or_else(|| envelope.get("conversationId"))
+                    .and_then(Value::as_i64)
+                    .map(|v| v as i32);
             }
         }
         (entry.agent_type.clone(), entry.conversation_id, entry.folder.clone(), entry.model.clone())
@@ -702,11 +707,27 @@ async fn emit_mapped(app: &AppHandle, state: &Arc<PhantomState>, connection_id: 
             WINDOW_LABEL,
             "phantom://limit",
             json!({ "connectionId": connection_id, "agentType": agent_type, "scope": scope, "message": message,
-                    "successor": successor.and_then(|s| s.get("successor").cloned()) }),
+                    "successor": successor.as_ref().and_then(|s| candidate_to_bridge(s.get("successor"))),
+                    "runnerUp": successor.as_ref().and_then(|s| candidate_to_bridge(s.get("runner_up"))) }),
         );
     }
 
     let _ = app.emit_to(WINDOW_LABEL, "phantom://event", payload);
+}
+
+/// One `phantom_successor` candidate (snake_case upstream) in the island's
+/// `PhantomSuccessorCandidate` shape. `agentType` is the id the handoff needs;
+/// `label` is what the card shows.
+pub fn candidate_to_bridge(candidate: Option<&Value>) -> Option<Value> {
+    let c = candidate.filter(|c| c.is_object())?;
+    let agent_type = c.get("agent_type").or_else(|| c.get("agentType")).and_then(Value::as_str)?;
+    let model = c.get("model").and_then(Value::as_str).unwrap_or_default();
+    Some(json!({
+        "agentType": agent_type,
+        "model": model,
+        "label": c.get("label").and_then(Value::as_str).unwrap_or(model),
+        "reason": c.get("reason").and_then(Value::as_str).unwrap_or_default(),
+    }))
 }
 
 /// Phantom's `PermissionRequest` (event and snapshot alike) is snake_case;
@@ -775,6 +796,16 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn successor_candidates_are_camel_cased_with_the_agent_id() {
+        let raw = json!({ "agent_type": "open_code", "model": "m1", "label": "opencode/M1", "reason": "r", "metrics": {} });
+        let out = candidate_to_bridge(Some(&raw)).unwrap();
+        assert_eq!(out["agentType"], "open_code");
+        assert_eq!(out["label"], "opencode/M1");
+        assert!(candidate_to_bridge(Some(&Value::Null)).is_none());
+        assert!(candidate_to_bridge(None).is_none());
+    }
 
     #[test]
     fn permission_requests_are_camel_cased_for_the_ui() {

@@ -77,7 +77,8 @@ export class Ticker {
   private c = makeRow(); // incoming
   private queue: string[] = [];
   private startMs: number | null = null;
-  private displayIndex = -1;
+  private displayTotal = -1;
+  private displayTask: string | null = null;
 
   constructor() {
     this.el = h("div", { class: "ticker" }, this.a.el, this.b.el, this.c.el);
@@ -98,29 +99,33 @@ export class Ticker {
   sync(task: AgentTask | null) {
     const steps = task && task.steps.length > 0 ? task.steps : ["…"];
     const idx = task ? Math.min(task.stepIndex, steps.length - 1) : -1;
+    // Steps are capped (State keeps the last 20), so the index stops moving
+    // once the cap is reached; the ever-growing total is what tells new rows.
+    const total = task ? (task.stepTotal ?? task.stepIndex + 1) : 0;
+    const taskId = task?.id ?? null;
 
-    // First render: drop straight into place, no animation.
-    if (this.displayIndex < 0) {
-      this.displayIndex = idx;
-      setText(this.a, idx > 0 ? steps[idx - 1] : "…");
-      setText(this.b, steps[Math.max(idx, 0)]);
-      this.rest();
-      return;
-    }
-
-    // The session restarted (steps were cleared): re-seed rather than scroll.
-    if (idx < this.displayIndex) {
+    // First render, another session, or the session restarted: drop straight
+    // into place, no animation.
+    if (this.displayTotal < 0 || taskId !== this.displayTask || total < this.displayTotal) {
       this.queue = [];
       this.startMs = null;
-      this.displayIndex = idx;
+      this.displayTotal = total;
+      this.displayTask = taskId;
       setText(this.a, idx > 0 ? steps[idx - 1] : "…");
       setText(this.b, steps[Math.max(idx, 0)]);
       this.rest();
       return;
     }
 
-    for (let i = this.displayIndex + 1; i <= idx; i++) this.queue.push(steps[i]);
-    this.displayIndex = idx;
+    const fresh = total - this.displayTotal;
+    if (fresh === 0) {
+      // Same row, possibly still growing (the agent's text streams into it).
+      if (!this.animating) setText(this.b, steps[Math.max(idx, 0)]);
+      return;
+    }
+    const from = Math.max(0, idx + 1 - fresh);
+    for (let i = from; i <= idx; i++) this.queue.push(steps[i]);
+    this.displayTotal = total;
     if (this.queue.length > MAX_QUEUE) {
       this.queue = this.queue.slice(-MAX_QUEUE);
     }

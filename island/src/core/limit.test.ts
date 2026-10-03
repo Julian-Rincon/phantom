@@ -6,8 +6,8 @@ import { setLang } from "./i18n";
 const base: LimitInfo = {
   agent: "Claude Opus 5",
   resetHint: "5am",
-  successor: { agent: "Claude Sonnet 5", model: "claude-sonnet-5", reason: "más rápido y disponible ahora" },
-  runnerUp: { agent: "OpenCode", model: "gpt-4o", reason: "segunda mejor opción medida" },
+  successor: { agent: "Claude Sonnet 5", agentType: "claude_code", model: "claude-sonnet-5", reason: "más rápido y disponible ahora" },
+  runnerUp: { agent: "OpenCode", agentType: "open_code", model: "gpt-4o", reason: "segunda mejor opción medida" },
   conversationId: 42,
 };
 
@@ -18,6 +18,12 @@ describe("buildLimitCard", () => {
     expect(card.actions.map((a) => a.kind)).toEqual(["continue", "chooseOther", "wait"]);
     expect(card.title).toContain("Claude Opus 5");
     expect(card.resetLine).toContain("5am");
+  });
+
+  it("hands off by agent id, not by the label it shows", () => {
+    const card = buildLimitCard(base);
+    expect(card.actions[0].target).toEqual({ agentType: "claude_code", model: "claude-sonnet-5" });
+    expect(card.actions[1].target).toEqual({ agentType: "open_code", model: "gpt-4o" });
   });
 
   it("drops the continue action when there is no successor", () => {
@@ -33,12 +39,6 @@ describe("buildLimitCard", () => {
   it("always keeps the wait action, even with no candidates", () => {
     const card = buildLimitCard({ ...base, successor: null, runnerUp: null });
     expect(card.actions.map((a) => a.kind)).toEqual(["wait"]);
-  });
-
-  it("carries the successor's agent/model as the continue action's target", () => {
-    const card = buildLimitCard(base);
-    const continueAction = card.actions.find((a) => a.kind === "continue");
-    expect(continueAction?.target).toEqual({ agent: "Claude Sonnet 5", model: "claude-sonnet-5" });
   });
 
   it("omits the reset line when no hint was given", () => {

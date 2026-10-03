@@ -50,7 +50,7 @@ export function buildLimit(): ViewHost {
             return;
           }
           if (action.target && info.conversationId != null) {
-            void Bridge.phantomHandoff(info.conversationId, action.target.agent, action.target.model);
+            void Bridge.phantomHandoff(info.conversationId, action.target.agentType, action.target.model);
           }
           State.pendingLimit = null;
           State.notify();

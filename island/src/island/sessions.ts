@@ -5,10 +5,10 @@
 // `phantom://permission-request` / `-resolved` / `phantom://connection` /
 // `phantom://limit` channels.
 
-import { Bridge, onEvent, type ConnectionPayload, type LimitEventPayload,
+import { Bridge, onEvent, type ConnectionPayload, type LimitEventPayload, type PhantomSuccessorCandidate,
   type PermissionRequestPayload, type PermissionResolvedPayload, type PhantomEventPayload } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { State } from "../core/state";
+import { State, type LimitCandidate } from "../core/state";
 import { accentForAgentType, accentHex, agentLabel } from "../core/accents";
 import type { Island } from "./island";
 
@@ -30,6 +30,9 @@ function toolCallLabel(data: Record<string, unknown>): string {
   if (path) return `${name} · ${lastPathComponent(path)}`;
   return name;
 }
+
+/** The text line currently growing per session, reset by each tool call. */
+const textLines = new Map<string, string>();
 
 function sessionId(connectionId: string): string {
   return `session_${connectionId}`;
@@ -67,20 +70,34 @@ function handlePhantomEvent(island: Island, ev: PhantomEventPayload) {
 
     case "content_delta": {
       State.updateTask(id, "working");
-      const text = typeof ev.data.textDelta === "string" ? ev.data.textDelta : null;
-      if (text) State.appendStep(id, text.slice(0, 60));
+      // Deltas are a few characters each: grow one "what it is saying" line
+      // per stretch of text instead of a step per fragment. Subagent chunks
+      // (parent_tool_use_id) are not the session's own voice.
+      const text = typeof ev.data.text === "string" && !ev.data.parent_tool_use_id ? ev.data.text : null;
+      if (text) {
+        const line = ((textLines.get(id) ?? "") + text).replace(/\s+/g, " ");
+        const fresh = !textLines.has(id);
+        textLines.set(id, line);
+        const shown = line.trim().slice(-60);
+        if (shown) {
+          if (fresh) State.appendStep(id, shown);
+          else State.replaceLastStep(id, shown);
+        }
+      }
       surface("overview", false);
       break;
     }
 
     case "tool_call":
     case "tool_call_update":
+      textLines.delete(id);
       State.updateTask(id, "working");
       State.appendStep(id, toolCallLabel(ev.data));
       surface("overview", false);
       break;
 
     case "turn_complete":
+      textLines.delete(id);
       State.updateTask(id, "finished");
       Sound.play("finish");
       if (focused) surface("finished", true);
@@ -99,11 +116,17 @@ function handlePhantomEvent(island: Island, ev: PhantomEventPayload) {
       else State.setPillBadge(id, "error");
       break;
 
-    case "conversation_status_changed": {
-      const status = typeof ev.data.status === "string" ? ev.data.status : null;
-      if (status === "connected" || status === "prompting") State.updateTask(id, "working");
+    // Connection status (connecting/connected/prompting/…) and conversation
+    // status (in_progress/pending_review/completed/cancelled) are separate
+    // events upstream; only "a turn is running" maps to working here — the
+    // end of a turn is `turn_complete`.
+    case "status_changed":
+      if (ev.data.status === "prompting") State.updateTask(id, "working");
       break;
-    }
+
+    case "conversation_status_changed":
+      if (ev.data.status === "in_progress") State.updateTask(id, "working");
+      break;
 
     default:
       break;
@@ -181,6 +204,16 @@ function handleConnection(island: Island, payload: ConnectionPayload) {
   State.notify();
 }
 
+function toCandidate(c: PhantomSuccessorCandidate | null | undefined): LimitCandidate | null {
+  if (!c?.agentType) return null;
+  return {
+    agent: c.label || `${agentLabel(c.agentType)} · ${c.model}`,
+    agentType: c.agentType,
+    model: c.model,
+    reason: c.reason,
+  };
+}
+
 function handleLimit(island: Island, payload: LimitEventPayload) {
   const agentName = agentLabel(payload.agentType);
   State.pendingLimit = {
@@ -188,10 +221,8 @@ function handleLimit(island: Island, payload: LimitEventPayload) {
     // The backend message carries its own reset hint inline; we don't parse
     // it further here — if BRIDGE.md later adds a structured field, prefer it.
     resetHint: "",
-    successor: payload.successor
-      ? { agent: agentLabel(payload.successor.agentType), model: payload.successor.model, reason: payload.successor.reason }
-      : null,
-    runnerUp: null,
+    successor: toCandidate(payload.successor),
+    runnerUp: toCandidate(payload.runnerUp),
     conversationId: State.findSessionByConnection(payload.connectionId)?.conversationId ?? null,
   };
   const id = sessionId(payload.connectionId);

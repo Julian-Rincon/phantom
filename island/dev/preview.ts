@@ -89,8 +89,8 @@ function triggerLimit() {
   State.pendingLimit = {
     agent: "Claude Opus 5",
     resetHint: "5am",
-    successor: { agent: "Claude Sonnet 5", model: "claude-sonnet-5", reason: "más rápido y ya disponible" },
-    runnerUp: { agent: "OpenCode", model: "gpt-4o", reason: "segunda mejor opción medida" },
+    successor: { agent: "Claude Sonnet 5", agentType: "claude_code", model: "claude-sonnet-5", reason: "más rápido y ya disponible" },
+    runnerUp: { agent: "OpenCode", agentType: "open_code", model: "gpt-4o", reason: "segunda mejor opción medida" },
     conversationId: 1,
   };
   island.alert("limit");

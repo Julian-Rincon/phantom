@@ -14,6 +14,8 @@ export interface AgentTask {
   color: string;
   state: BotStateName;
   stepIndex: number;
+  /** Steps ever appended (the list itself is capped); drives the ticker. */
+  stepTotal?: number;
   steps: string[];
   source: AgentSource;
   isIntegration: boolean;
@@ -48,15 +50,23 @@ export interface ChatMessage {
   streaming?: boolean;
 }
 
+export interface LimitCandidate {
+  agent: string;
+  agentType: string;
+  model: string;
+  reason: string;
+}
+
 export interface LimitInfo {
   /** Agent/model that ran out of tokens, e.g. "Claude Sonnet 5". */
   agent: string;
   /** Human-readable reset hint, e.g. "5am" — already localized by the backend. */
   resetHint: string;
-  /** Best successor to offer as the primary action. */
-  successor: { agent: string; model: string; reason: string } | null;
+  /** Best successor to offer as the primary action. `agent` is the display
+   *  label; `agentType` is the id the handoff needs. */
+  successor: LimitCandidate | null;
   /** Runner-up offered behind "Choose another". */
-  runnerUp: { agent: string; model: string; reason: string } | null;
+  runnerUp: LimitCandidate | null;
   /** The conversation to retry once a successor is chosen. */
   conversationId: number | null;
 }
@@ -254,6 +264,17 @@ class AppState {
     if (!t) return;
     t.steps.push(step);
     if (t.steps.length > 20) t.steps.shift();
+    t.stepIndex = t.steps.length - 1;
+    t.stepTotal = (t.stepTotal ?? t.steps.length - 1) + 1;
+    this.notify();
+  }
+
+  /** Rewrites the newest step in place (a line that is still growing). */
+  replaceLastStep(id: string, step: string) {
+    const t = this.tasks.find((x) => x.id === id);
+    if (!t) return;
+    if (t.steps.length === 0) t.steps.push(step);
+    else t.steps[t.steps.length - 1] = step;
     t.stepIndex = t.steps.length - 1;
     this.notify();
   }
