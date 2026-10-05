@@ -17,12 +17,14 @@ import asyncio
 import contextlib
 import gc
 import io
+import json
 import logging
 import os
 import re
 import shutil
 import subprocess
 import time
+import urllib.request
 from pathlib import Path
 from typing import Optional
 
@@ -30,7 +32,9 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
+
+from speech_text import normalize_for_speech
 
 logger = logging.getLogger("phantom_voice")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s phantom_voice: %(message)s")
@@ -85,6 +89,101 @@ def _load_codeg_token() -> str:
 
 
 CODEG_TOKEN = _load_codeg_token()
+
+
+# --------------------------------------------------------------------------
+# Voice personas: one voice per agent (see voices.default.json)
+# --------------------------------------------------------------------------
+
+VOICES_PATH = Path(os.environ.get("PHANTOM_VOICE_VOICES", str(Path.home() / ".config/phantom-voice/voices.json")))
+VOICES_DEFAULT_PATH = Path(__file__).with_name("voices.default.json")
+CHATTERBOX_URL = os.environ.get("PHANTOM_CHATTERBOX_URL", "http://127.0.0.1:3092")
+CHATTERBOX_TIMEOUT_S = 25.0
+CODEG_URL = os.environ.get("PHANTOM_VOICE_CODEG_URL", "http://127.0.0.1:3080")
+NEXUS_FOLDER_ALIAS = "NEXUS"
+
+
+def load_voices(path: Path = VOICES_PATH) -> dict:
+    """User config, else the repo default, else no personas (plain Kokoro)."""
+    for candidate in (path, VOICES_DEFAULT_PATH):
+        try:
+            data = json.loads(candidate.read_text())
+        except FileNotFoundError:
+            continue
+        except Exception:  # noqa: BLE001 - a broken file must not take the service down
+            logger.warning("ignoring unreadable voices config %s", candidate)
+            continue
+        if isinstance(data, dict) and isinstance(data.get("personas"), dict):
+            return data
+    return {"default": None, "personas": {}}
+
+
+VOICES = load_voices()
+
+
+def _codeg_post(command: str, body: dict) -> dict:
+    req = urllib.request.Request(
+        f"{CODEG_URL}/api/{command}",
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {CODEG_TOKEN}"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=3) as r:
+        return json.loads(r.read() or b"{}")
+
+
+# Only successful lookups are cached: a codeg hiccup must not pin a wrong voice.
+_alias_cache: dict[int, Optional[str]] = {}
+
+
+def folder_alias_for_conversation(conversation_id: int) -> Optional[str]:
+    if conversation_id in _alias_cache:
+        return _alias_cache[conversation_id]
+    try:
+        conv = _codeg_post("get_folder_conversation", {"conversationId": conversation_id, "tailTurns": 1})
+        folder_id = (conv.get("summary") or {}).get("folder_id")
+        alias = _codeg_post("get_folder", {"folderId": folder_id}).get("alias") if folder_id else None
+    except Exception:  # noqa: BLE001
+        logger.warning("could not resolve folder for conversation %s", conversation_id)
+        return None
+    if len(_alias_cache) > 512:
+        _alias_cache.clear()
+    _alias_cache[conversation_id] = alias
+    return alias
+
+
+def resolve_persona(persona: Optional[str], conversation_id: Optional[int]) -> Optional[str]:
+    personas = VOICES.get("personas") or {}
+    nexus = NEXUS_FOLDER_ALIAS.lower()
+    if conversation_id is not None and nexus in personas \
+            and folder_alias_for_conversation(conversation_id) == NEXUS_FOLDER_ALIAS:
+        return nexus
+    if persona in personas:
+        return persona
+    default = VOICES.get("default")
+    return default if default in personas else None
+
+
+def chatterbox_synthesize(text: str, lang: str, persona_cfg: dict):
+    import numpy as np
+    import soundfile as sf
+
+    body = {
+        "text": text,
+        "lang": lang,
+        "reference": persona_cfg.get("reference"),
+        "exaggeration": float(persona_cfg.get("exaggeration", 0.5)),
+        "cfg_weight": float(persona_cfg.get("cfg_weight", 0.5)),
+    }
+    req = urllib.request.Request(
+        f"{CHATTERBOX_URL}/tts",
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {CODEG_TOKEN}"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=CHATTERBOX_TIMEOUT_S) as r:
+        audio, sample_rate = sf.read(io.BytesIO(r.read()), dtype="float32")
+    return np.asarray(audio, dtype=np.float32), int(sample_rate)
 
 
 def _gpu_present() -> bool:
@@ -378,10 +477,14 @@ async def stt_endpoint(request: Request, lang: str = Query("auto")) -> dict:
 
 
 class TTSRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     text: str
     lang: str
     voice: Optional[str] = None
     speed: Optional[float] = None
+    persona: Optional[str] = None
+    conversation_id: Optional[int] = Field(None, alias="conversationId")
 
 
 @app.post("/tts", dependencies=[Depends(require_auth)])
@@ -395,17 +498,32 @@ async def tts_endpoint(payload: TTSRequest) -> Response:
     if not cleaned.strip():
         raise HTTPException(status_code=400, detail="text is empty after stripping markdown")
 
-    voice = payload.voice or DEFAULT_VOICES[payload.lang]
+    cleaned = normalize_for_speech(cleaned, payload.lang)
     speed = payload.speed if payload.speed else 1.0
+    persona = None if payload.voice else resolve_persona(payload.persona, payload.conversation_id)
+    persona_cfg = (VOICES.get("personas") or {}).get(persona) or {}
+    engine = persona_cfg.get("engine", "kokoro")
+    voice = payload.voice or persona_cfg.get("voice") or DEFAULT_VOICES[payload.lang]
+    if engine == "chatterbox":
+        voice = persona_cfg.get("reference") or voice
 
     t0 = time.perf_counter()
-    try:
-        audio, sample_rate = synthesize(cleaned, voice=voice, speed=speed, lang=payload.lang)
-    except HTTPException:
-        raise
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("TTS synthesis failed")
-        raise HTTPException(status_code=422, detail=f"could not synthesize speech: {exc}") from exc
+    audio = None
+    if engine == "chatterbox":
+        try:
+            audio, sample_rate = await asyncio.to_thread(chatterbox_synthesize, cleaned, payload.lang, persona_cfg)
+        except Exception as exc:  # noqa: BLE001 - fall back to Kokoro rather than go silent
+            logger.warning("chatterbox failed for persona=%s (%s); falling back to kokoro", persona, exc)
+            engine = "kokoro-fallback"
+            voice = persona_cfg.get("fallback") or DEFAULT_VOICES[payload.lang]
+    if audio is None:
+        try:
+            audio, sample_rate = synthesize(cleaned, voice=voice, speed=speed, lang=payload.lang)
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("TTS synthesis failed")
+            raise HTTPException(status_code=422, detail=f"could not synthesize speech: {exc}") from exc
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
 
     import soundfile as sf
@@ -414,7 +532,10 @@ async def tts_endpoint(payload: TTSRequest) -> Response:
     sf.write(buf, audio, sample_rate, format="WAV", subtype="PCM_16")
     buf.seek(0)
 
-    logger.info("tts lang=%s voice=%s chars=%d elapsed_ms=%d", payload.lang, voice, len(cleaned), elapsed_ms)
+    logger.info(
+        "tts lang=%s persona=%s engine=%s voice=%s chars=%d elapsed_ms=%d",
+        payload.lang, persona, engine, voice, len(cleaned), elapsed_ms,
+    )
     return Response(content=buf.read(), media_type="audio/wav")
 
 

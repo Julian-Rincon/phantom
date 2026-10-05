@@ -1,0 +1,9 @@
+{
+  "default": "nexus",
+  "personas": {
+    "nexus":       {"engine": "chatterbox", "reference": "nexus.wav",  "exaggeration": 0.5,  "cfg_weight": 0.5, "fallback": "em_alex"},
+    "claude_code": {"engine": "chatterbox", "reference": "claude.wav", "exaggeration": 0.65, "cfg_weight": 0.4, "fallback": "em_alex"},
+    "open_code":   {"engine": "kokoro", "voice": "ef_dora"},
+    "hermes":      {"engine": "kokoro", "voice": "em_alex"}
+  }
+}

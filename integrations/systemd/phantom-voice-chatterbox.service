@@ -1,0 +1,21 @@
+[Unit]
+Description=phantom-voice Chatterbox (voces clonadas, loopback)
+Wants=network.target
+After=network.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+Environment=HOME=%h
+Environment=PHANTOM_CHATTERBOX_PORT=3092
+WorkingDirectory=%h/Documentos/Proyectos/agent-control-center/voice
+ExecStart=%h/Documentos/Proyectos/agent-control-center/voice/run-chatterbox.sh
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+UMask=0077
+MemoryHigh=6G
+
+[Install]
+WantedBy=default.target

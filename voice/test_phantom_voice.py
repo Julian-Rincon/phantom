@@ -42,6 +42,21 @@ def client():
 
 
 @pytest.fixture(autouse=True)
+def _legacy_voices(monkeypatch):
+    """Sin personas configuradas, /tts conserva el comportamiento original (Kokoro).
+    Cualquier llamada a Chatterbox o a codeg que un test no prepare explota."""
+    monkeypatch.setattr(phantom_voice, "VOICES", {"default": None, "personas": {}})
+    def no_chatterbox(*a, **k):
+        raise AssertionError("chatterbox no previsto")
+    def no_codeg(*a, **k):
+        raise AssertionError("codeg no previsto")
+    monkeypatch.setattr(phantom_voice, "chatterbox_synthesize", no_chatterbox)
+    monkeypatch.setattr(phantom_voice, "_codeg_post", no_codeg)
+    phantom_voice._alias_cache.clear()
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _reset_stt_globals():
     """STT load state is module-global; keep tests from leaking into each other."""
     phantom_voice._stt_model = None
@@ -499,3 +514,106 @@ class TestHealthReportsLoadedFlag:
         run(phantom_voice.unload_stt_model())
         body = client.get("/health").json()
         assert body["stt"]["loaded"] is False
+
+
+PERSONAS = {
+    "default": "nexus",
+    "personas": {
+        "nexus": {"engine": "chatterbox", "reference": "nexus.wav", "exaggeration": 0.5,
+                  "cfg_weight": 0.5, "fallback": "em_alex"},
+        "open_code": {"engine": "kokoro", "voice": "ef_dora"},
+        "hermes": {"engine": "kokoro", "voice": "em_alex"},
+    },
+}
+
+
+@pytest.fixture()
+def personas(monkeypatch):
+    monkeypatch.setattr(phantom_voice, "VOICES", PERSONAS)
+    seen = {"kokoro": [], "chatterbox": []}
+
+    def fake_synth(text, voice, speed, lang):
+        seen["kokoro"].append({"text": text, "voice": voice})
+        return np.zeros(100, dtype=np.float32), 24000
+
+    def fake_cb(text, lang, persona_cfg):
+        seen["chatterbox"].append({"text": text, "reference": persona_cfg["reference"]})
+        return np.zeros(100, dtype=np.float32), 24000
+
+    monkeypatch.setattr(phantom_voice, "synthesize", fake_synth)
+    monkeypatch.setattr(phantom_voice, "chatterbox_synthesize", fake_cb)
+    return seen
+
+
+class TestPersonas:
+    def test_explicit_kokoro_persona(self, client, personas):
+        r = client.post("/tts", json={"text": "hola", "lang": "es", "persona": "open_code"}, headers=AUTH)
+        assert r.status_code == 200
+        assert personas["kokoro"][0]["voice"] == "ef_dora"
+
+    def test_unknown_persona_uses_default(self, client, personas):
+        client.post("/tts", json={"text": "hola", "lang": "es", "persona": "gemini"}, headers=AUTH)
+        assert personas["chatterbox"][0]["reference"] == "nexus.wav"
+
+    def test_no_persona_uses_default(self, client, personas):
+        client.post("/tts", json={"text": "hola", "lang": "es"}, headers=AUTH)
+        assert len(personas["chatterbox"]) == 1
+
+    def test_nexus_folder_alias_wins(self, client, personas, monkeypatch):
+        calls = []
+
+        def fake_codeg(command, body):
+            calls.append(command)
+            if command == "get_folder_conversation":
+                return {"summary": {"folder_id": 9, "agent_type": "open_code"}}
+            if command == "get_folder":
+                return {"id": 9, "alias": "NEXUS"}
+            raise AssertionError(command)
+
+        monkeypatch.setattr(phantom_voice, "_codeg_post", fake_codeg)
+        body = {"text": "hola", "lang": "es", "persona": "open_code", "conversationId": 91}
+        client.post("/tts", json=body, headers=AUTH)
+        client.post("/tts", json=body, headers=AUTH)
+        assert len(personas["chatterbox"]) == 2 and personas["kokoro"] == []
+        assert calls.count("get_folder") == 1  # cacheado
+
+    def test_codeg_down_falls_back_to_persona(self, client, personas, monkeypatch):
+        def down(command, body):
+            raise OSError("refused")
+
+        monkeypatch.setattr(phantom_voice, "_codeg_post", down)
+        r = client.post("/tts", json={"text": "hola", "lang": "es", "persona": "hermes",
+                                      "conversationId": 5}, headers=AUTH)
+        assert r.status_code == 200 and personas["kokoro"][0]["voice"] == "em_alex"
+
+    def test_chatterbox_down_falls_back_to_kokoro(self, client, personas, monkeypatch):
+        def boom(text, lang, persona_cfg):
+            raise OSError("3092 refused")
+
+        monkeypatch.setattr(phantom_voice, "chatterbox_synthesize", boom)
+        r = client.post("/tts", json={"text": "hola", "lang": "es", "persona": "nexus"}, headers=AUTH)
+        assert r.status_code == 200
+        assert personas["kokoro"][0]["voice"] == "em_alex"
+
+    def test_text_is_normalized_before_engine(self, client, personas):
+        client.post("/tts", json={"text": "El pipeline de la API", "lang": "es", "persona": "hermes"},
+                    headers=AUTH)
+        assert personas["kokoro"][0]["text"] == "El páiplain de la a pe i"
+
+    def test_explicit_voice_still_wins(self, client, personas):
+        client.post("/tts", json={"text": "hola", "lang": "es", "persona": "nexus", "voice": "ef_dora"},
+                    headers=AUTH)
+        assert personas["kokoro"][0]["voice"] == "ef_dora" and personas["chatterbox"] == []
+
+
+class TestLoadVoices:
+    def test_missing_or_corrupt_uses_repo_default(self, tmp_path):
+        bad = tmp_path / "voices.json"
+        bad.write_text("{no json")
+        assert "nexus" in phantom_voice.load_voices(bad)["personas"]
+        assert "nexus" in phantom_voice.load_voices(tmp_path / "nada.json")["personas"]
+
+    def test_valid_file_is_used(self, tmp_path):
+        p = tmp_path / "voices.json"
+        p.write_text('{"default": "hermes", "personas": {"hermes": {"engine": "kokoro", "voice": "em_alex"}}}')
+        assert phantom_voice.load_voices(p)["default"] == "hermes"
