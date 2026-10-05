@@ -70,6 +70,7 @@ CODEG_TOKEN = _load_codeg_token()
 
 def _real_model_factory():
     """Build the real Chatterbox model (requires the brag/chatterbox venv)."""
+    import torch
     from chatterbox.mtl_tts import ChatterboxMultilingualTTS
 
     model = ChatterboxMultilingualTTS.from_pretrained(device="cuda")
@@ -83,7 +84,12 @@ def _real_model_factory():
                 exaggeration=exaggeration,
                 cfg_weight=cfg_weight,
             )
-            return wav.squeeze().cpu().numpy(), int(model.sr)
+            audio = wav.squeeze().cpu().numpy()
+            # Release the per-request activations right away: the 8 GB GPU is
+            # shared with Whisper (~2.2 GB) and games.
+            del wav
+            torch.cuda.empty_cache()
+            return audio, int(model.sr)
 
     return _RealChatterboxModel()
 
