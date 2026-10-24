@@ -1,0 +1,25 @@
+[Unit]
+Description=Phantom (app de escritorio): chats, Telegram y web en 127.0.0.1:3080
+PartOf=graphical-session.target
+After=graphical-session.target
+# El servidor y el escritorio comparten la carpeta de datos: nunca los dos a la vez.
+Conflicts=codeg.service
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/codeg/server.env
+Environment=HOME=%h
+Environment=LANG=C.UTF-8
+Environment=PATH=%h/.npm-global/bin:%h/.bun/bin:%h/.local/bin:%h/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/bin
+# El gancho de FORGE en Telegram (etapa 5).
+Environment=PHANTOM_FORGE_TAP=1
+WorkingDirectory=%h
+ExecStart=%h/.local/lib/phantom-desktop/codeg
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillMode=mixed
+UMask=0077
+
+[Install]
+WantedBy=graphical-session.target
