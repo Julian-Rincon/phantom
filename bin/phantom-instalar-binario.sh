@@ -30,7 +30,7 @@ responde() {
 es_el_nuevo() {
   local pid
   pid=$(systemctl --user show -p MainPID --value phantom-desktop.service)
-  [[ "$pid" -gt 0 && "$(readlink "/proc/$pid/exe")" == "$DEST" ]]
+  [[ "$pid" -gt 0 && "$(readlink "/proc/$pid/exe")" == "$DEST" ]] && cmp -s "$NEW" "$DEST"
 }
 
 log "== instalación de $NEW"
@@ -43,6 +43,8 @@ if ! sqlite3 "$DATA/codeg.db" ".backup '$R/codeg.db'"; then
 fi
 cp -p "$DEST" "$DEST.backup-$TS"
 log "respaldo de base en $R, binario en $DEST.backup-$TS"
+
+install -m 0755 "$NEW" "$DEST.tmp" && mv -f "$DEST.tmp" "$DEST"
 
 # Los binarios auxiliares salen de la misma compilación que el principal.
 DIR_NEW=$(dirname "$NEW")
