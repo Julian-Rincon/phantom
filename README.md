@@ -246,3 +246,8 @@ agent-control-center/
 ## Créditos
 
 Este proyecto es un envoltorio de identidad, documentación y automatización local sobre [Codeg](https://github.com/xintaofei/codeg), licenciado bajo Apache-2.0. Toda la funcionalidad de servidor, UI, cliente ACP, streaming, permisos, terminal, diffs, Git/worktrees e importación de historial proviene de ese proyecto upstream.
+
+---
+
+<!-- julian-rincon-footer -->
+<p align="center"><sub>Hecho por <b>Julián Rincón</b> · <a href="https://julian-rincon.github.io/#p-phantom">Portafolio</a> · <a href="https://www.linkedin.com/in/julian-esteban-rinc%C3%B3n-rodriguez-1a05501b7/">LinkedIn</a> · <a href="https://github.com/Julian-Rincon">GitHub</a></sub></p>
