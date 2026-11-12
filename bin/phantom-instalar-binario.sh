@@ -48,11 +48,25 @@ install -m 0755 "$NEW" "$DEST.tmp" && mv -f "$DEST.tmp" "$DEST"
 
 # Los binarios auxiliares salen de la misma compilación que el principal.
 DIR_NEW=$(dirname "$NEW")
-for aux in codeg-mcp codeg-cli codeg-computer-helper; do
+for aux in codeg-mcp codeg-cli codeg-computer-helper codeg-server; do
   [[ -x "$DIR_NEW/$aux" ]] || continue
   cp -p "$HOME/.local/bin/$aux" "$HOME/.local/bin/$aux.backup-$TS" 2>/dev/null || true
   install -m 0755 "$DIR_NEW/$aux" "$HOME/.local/bin/$aux.tmp" && mv -f "$HOME/.local/bin/$aux.tmp" "$HOME/.local/bin/$aux"
 done
+
+# La web de 3080 (y Tailscale) se sirve desde CODEG_STATIC_DIR, no del binario: sin esto
+# queda un frontend viejo contra un backend nuevo (eventos que se ven como texto plano).
+OUT_NEW=$(cd "$DIR_NEW/../../.." 2>/dev/null && pwd)/out
+WEB="$DATA/web"
+if [[ -f "$OUT_NEW/index.html" ]]; then
+  [[ -d "$WEB" ]] && cp -a "$WEB" "$WEB.backup-$TS"
+  mkdir -p "$WEB" && rsync -a --delete "$OUT_NEW/" "$WEB/"
+  [[ -f "$OUT_NEW/../public/phantom-emblem-256.png" ]] && install -m 644 "$OUT_NEW/../public/phantom-emblem-256.png" "$WEB/"
+  ls -1d "$WEB".backup-* 2>/dev/null | head -n -3 | xargs -r rm -rf
+  log "web actualizada desde $OUT_NEW"
+else
+  log "sin $OUT_NEW/index.html: la web queda como estaba"
+fi
 
 # Una instancia lanzada por el autostart se queda con el candado de instancia única y el
 # servicio saldría al instante, con el binario viejo todavía respondiendo en 3080.
