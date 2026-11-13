@@ -1,0 +1,6 @@
+[Unit]
+Description=Phantom: reinicio de madrugada si el webview pasa de 3 GB y no hay agentes trabajando
+
+[Service]
+Type=oneshot
+ExecStart=%h/Documentos/Proyectos/agent-control-center/bin/phantom-memoria.sh

@@ -1,0 +1,9 @@
+[Unit]
+Description=Phantom: revisa la memoria del webview a las 4:30
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+Persistent=false
+
+[Install]
+WantedBy=timers.target
