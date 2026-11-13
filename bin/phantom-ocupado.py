@@ -15,7 +15,8 @@ import time
 
 QUIET = 300  # segundos sin escribir en la transcripción
 IGNORA = ("mcp serve", "mcp-serve", "nexus-mcp", "codeg-mcp", "unity mcp", "/unity",
-          "hermes-agent", "hermes mcp", "ollama", "llama-server", "tail -n +1 -f", "tail -f")
+          "hermes-agent", "hermes mcp", "ollama", "llama-server", "tail -n +1 -f", "tail -f",
+          "voicestudio-mcp", "mcp_shim")
 
 
 def salida(*cmd):
@@ -67,7 +68,10 @@ for pid, _, args in agentes:
             ultimo = "fin" if d["message"].get("stop_reason") == "end_turn" else "en turno"
             break
         if t == "user":
-            ultimo = "en turno"
+            # Un Esc deja "[Request interrupted by user]" como último mensaje: el turno ya terminó.
+            c = d.get("message", {}).get("content")
+            txt = c if isinstance(c, str) else " ".join(x.get("text", "") for x in c or [] if isinstance(x, dict))
+            ultimo = "fin" if txt.startswith("[Request interrupted by user") else "en turno"
             break
     if ultimo == "en turno":
         ocupado.append(f"{sid[:8]} en turno")
