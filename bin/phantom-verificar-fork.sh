@@ -29,6 +29,9 @@ revisar src-tauri/src/chat_channel/command_dispatcher.rs "nexus_chat::is_ack("
 revisar src-tauri/src/commands/mod.rs "nexus_panel"
 revisar src-tauri/src/web/handlers/mod.rs "nexus_panel"
 revisar src-tauri/src/web/router.rs "handlers::nexus_panel::nexus_panel"
+existe src-tauri/src/web/handlers/phantom_route_plan.rs
+revisar src-tauri/src/web/handlers/mod.rs "phantom_route_plan"
+revisar src-tauri/src/web/router.rs "handlers::phantom_route_plan::phantom_route_plan"
 revisar src-tauri/src/lib.rs "commands::nexus_panel::nexus_panel"
 revisar src/components/conversations/conversation-detail-panel.tsx "NexusCommandCenter" 2
 revisar src-tauri/tauri.conf.json '"productName": "Phantom"'
