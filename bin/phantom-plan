@@ -6,9 +6,12 @@
 Cada tarea es `tipo:dificultad`, seguida opcionalmente de una etiqueta entre comillas.
 Tipos: plan implement refactor debug review test explore research shell docs quick
 Dificultades: trivial normal hard long
+`--prioridad alta|normal|baja` dice cuánto importa el proyecto: baja nunca gasta la cuota
+paga de Claude; normal (por defecto) la gasta solo si la semana va al ritmo; alta usa lo
+mejor hasta que la cuota casi se acabe.
 `--json` devuelve la respuesta cruda. El router decide con la cuota de Claude, el perfil
 activo y lo que ha aprendido de delegaciones anteriores; para delegar de verdad se usa
-`delegate_to_agent(agent_type="auto", task_kind=..., difficulty=...)` dentro de Phantom."""
+`delegate_to_agent(agent_type="auto", task_kind=..., difficulty=..., priority="low|normal|high")` dentro de Phantom."""
 import json
 import os
 import sys
@@ -33,6 +36,15 @@ def entorno() -> dict:
 def main(argv: list[str]) -> int:
     crudo = "--json" in argv
     argv = [a for a in argv if a != "--json"]
+    prioridad = "normal"
+    if "--prioridad" in argv:
+        i = argv.index("--prioridad")
+        valor = argv[i + 1].lower() if i + 1 < len(argv) else ""
+        prioridad = {"alta": "high", "high": "high", "normal": "normal", "baja": "low", "low": "low"}.get(valor)
+        if prioridad is None:
+            print("--prioridad vale alta, normal o baja.", file=sys.stderr)
+            return 2
+        del argv[i:i + 2]
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
         return 0 if argv else 2
@@ -50,7 +62,7 @@ def main(argv: list[str]) -> int:
     host = env.get("CODEG_HOST") or "127.0.0.1"
     host = "127.0.0.1" if host in ("0.0.0.0", "::") else host
     url = f"http://{host}:{env.get('CODEG_PORT') or '3080'}/api/phantom_route_plan"
-    req = urllib.request.Request(url, data=json.dumps({"tasks": tareas}).encode(), method="POST",
+    req = urllib.request.Request(url, data=json.dumps({"tasks": tareas, "priority": prioridad}).encode(), method="POST",
                                  headers={"content-type": "application/json",
                                           "authorization": f"Bearer {env.get('CODEG_TOKEN', '')}"})
     try:
