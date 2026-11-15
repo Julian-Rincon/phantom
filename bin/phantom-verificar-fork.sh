@@ -36,6 +36,7 @@ revisar src-tauri/src/lib.rs "commands::nexus_panel::nexus_panel"
 revisar src/components/conversations/conversation-detail-panel.tsx "NexusCommandCenter" 2
 revisar src/components/chat/message-input.tsx "data-nexus-command-center" 1
 revisar src-tauri/src/acp/delegation/listener.rs "arg(\"priority\")" 1
+revisar src-tauri/src/chat_channel/session_event_subscriber.rs "nexus_chat::auto_failover(" 1
 revisar src-tauri/tauri.conf.json '"productName": "Phantom"'
 
 if grep -qE '^(<<<<<<<|>>>>>>>)' -r "$raiz/src" "$raiz/src-tauri/src" "$raiz/src-tauri/tauri.conf.json" 2>/dev/null; then
