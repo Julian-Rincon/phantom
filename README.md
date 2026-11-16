@@ -243,6 +243,35 @@ agent-control-center/
 └── codeg/                       # submódulo: fork de Codeg (Apache-2.0)
 ```
 
+## How it's measured
+
+Cifras de este repositorio que se citan en público, con el comando para volver
+a medirlas. Medido el 2026-11-16 (Python 3.12 en el venv de voz, ver
+[`voice/requirements.txt`](voice/requirements.txt)).
+
+| Métrica | Valor | Comando (desde la raíz del repo) | Medido |
+|---|---|---|---|
+| Commits | 52 (del 2026-09-24 al 2026-11-15), sin contar el que añade esta sección | `git rev-list --count HEAD` | 2026-11-16 |
+| Pruebas de voz | 73 pasan, 0 fallan | `cd voice && ~/.local/share/phantom/voice-venv/bin/python -m pytest -q` | 2026-11-16 |
+| ↳ `test_phantom_voice.py` (servidor de voz) | 61 | `pytest -q voice/test_phantom_voice.py` | 2026-11-16 |
+| ↳ `test_chatterbox_server.py` | 9 | `pytest -q voice/test_chatterbox_server.py` | 2026-11-16 |
+| ↳ `test_speech_text.py` (normalización para voz) | 3 | `pytest -q voice/test_speech_text.py` | 2026-11-16 |
+
+**Criterios.**
+
+- Una prueba cuenta solo si **pasa**, no si se recoge. Las 73 son las que
+  `pytest` reporta como `passed` (más 1 advertencia de una dependencia,
+  `starlette`).
+- Los commits son los de **este** repositorio (`git rev-list --count HEAD`,
+  sin submódulos): el historial del submódulo `codeg/` es del proyecto
+  upstream y no se suma. La cifra crece con cada commit; por eso lleva fecha.
+- `test_phantom_voice.py` simula los motores de voz (STT/TTS), así que esas
+  61 pruebas no necesitan GPU ni modelos descargados. Las dependencias están
+  en `voice/requirements.txt` y el venv lo crea `scripts/install-voice.sh`.
+- **No medido aquí:** las pruebas en Rust de `codeg/` (las que lanza
+  `scripts/build-codeg-local.sh`) y cualquier cifra de calidad de los
+  modelos.
+
 ## Créditos
 
 Este proyecto es un envoltorio de identidad, documentación y automatización local sobre [Codeg](https://github.com/xintaofei/codeg), licenciado bajo Apache-2.0. Toda la funcionalidad de servidor, UI, cliente ACP, streaming, permisos, terminal, diffs, Git/worktrees e importación de historial proviene de ese proyecto upstream.
