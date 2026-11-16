@@ -252,7 +252,7 @@ a medirlas. Medido el 2026-11-16 (Python 3.12 en el venv de voz, ver
 | Métrica | Valor | Comando (desde la raíz del repo) | Medido |
 |---|---|---|---|
 | Commits | 52 (del 2026-09-24 al 2026-11-15), sin contar el que añade esta sección | `git rev-list --count HEAD` | 2026-11-16 |
-| Pruebas de voz | 73 pasan, 0 fallan | `cd voice && ~/.local/share/phantom/voice-venv/bin/python -m pytest -q` | 2026-11-16 |
+| Pruebas de voz | 73 pasan, 0 fallan | `cd voice && python -m pytest -q` (venv de `scripts/install-voice.sh`) | 2026-11-16 |
 | ↳ `test_phantom_voice.py` (servidor de voz) | 61 | `pytest -q voice/test_phantom_voice.py` | 2026-11-16 |
 | ↳ `test_chatterbox_server.py` | 9 | `pytest -q voice/test_chatterbox_server.py` | 2026-11-16 |
 | ↳ `test_speech_text.py` (normalización para voz) | 3 | `pytest -q voice/test_speech_text.py` | 2026-11-16 |
