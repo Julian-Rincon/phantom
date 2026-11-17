@@ -617,3 +617,25 @@ class TestLoadVoices:
         p = tmp_path / "voices.json"
         p.write_text('{"default": "hermes", "personas": {"hermes": {"engine": "kokoro", "voice": "em_alex"}}}')
         assert phantom_voice.load_voices(p)["default"] == "hermes"
+
+
+class _Peticion:
+    def __init__(self, headers, host="127.0.0.1"):
+        self.headers = headers
+        self.client = type("C", (), {"host": host})()
+
+
+class TestAppDeEscritorio:
+    def test_la_app_entra_sin_token(self):
+        assert phantom_voice._desde_la_app(_Peticion({"origin": "tauri://localhost"}))
+
+    def test_otra_pagina_no(self):
+        assert not phantom_voice._desde_la_app(_Peticion({"origin": "https://evil.example"}))
+        assert not phantom_voice._desde_la_app(_Peticion({}))
+
+    def test_por_el_proxy_de_la_tailnet_no(self):
+        cabeceras = {"origin": "tauri://localhost", "x-forwarded-for": "100.1.2.3"}
+        assert not phantom_voice._desde_la_app(_Peticion(cabeceras))
+
+    def test_desde_otra_maquina_no(self):
+        assert not phantom_voice._desde_la_app(_Peticion({"origin": "tauri://localhost"}, host="192.168.1.9"))

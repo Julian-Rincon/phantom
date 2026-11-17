@@ -46,7 +46,13 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s phanto
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("PHANTOM_VOICE_PORT", "3091"))
 
-ALLOWED_ORIGINS = ["http://127.0.0.1:3080", "http://localhost:3080"]
+# La app de escritorio (Tauri) carga desde tauri://localhost, no desde el 3080.
+ALLOWED_ORIGINS = [
+    "http://127.0.0.1:3080",
+    "http://localhost:3080",
+    "tauri://localhost",
+    "http://tauri.localhost",
+]
 
 # Overridable for tests / alternate installs; defaults match the service contract.
 SERVER_ENV_PATH = Path(os.environ.get("PHANTOM_VOICE_SERVER_ENV", str(Path.home() / ".config/codeg/server.env")))
@@ -405,8 +411,28 @@ app.add_middleware(
 )
 
 
+APP_ORIGINS = {"tauri://localhost", "http://tauri.localhost"}
+PROXY_HEADERS = ("x-forwarded-for", "x-forwarded-host", "tailscale-user-login")
+
+
+def _desde_la_app(request: Request) -> bool:
+    """The desktop app has no token (it talks to Phantom over IPC, not HTTP).
+
+    Its webview origin can't be forged by a web page, and a request that came
+    through the tailnet proxy carries forwarding headers, so those still need
+    the token.
+    """
+    if request.headers.get("origin", "") not in APP_ORIGINS:
+        return False
+    if any(h in request.headers for h in PROXY_HEADERS):
+        return False
+    return request.client is not None and request.client.host in ("127.0.0.1", "::1")
+
+
 async def require_auth(request: Request) -> None:
     if request.method == "OPTIONS":
+        return
+    if _desde_la_app(request):
         return
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer ") or auth_header[len("Bearer ") :] != CODEG_TOKEN:
