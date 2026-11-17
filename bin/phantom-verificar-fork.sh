@@ -39,6 +39,7 @@ revisar src-tauri/src/acp/delegation/listener.rs "arg(\"priority\")" 1
 revisar src-tauri/src/chat_channel/session_event_subscriber.rs "nexus_chat::auto_failover(" 1
 revisar src-tauri/src/commands/windows.rs "phantom::micro::permitir(" 1
 revisar src-tauri/src/chat_channel/backends/telegram.rs "nexus_adjuntos::extraer(" 1
+revisar src-tauri/src/acp/connection.rs "phantom::chrome::agregar(" 1
 revisar src/components/voice/voice-live-overlay.tsx "useNexusTema()" 1
 revisar src/components/phantom/nexus-command-center.tsx "useNexusTema(active)" 1
 revisar src-tauri/tauri.conf.json '"productName": "Phantom"'
