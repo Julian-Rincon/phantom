@@ -639,3 +639,13 @@ class TestAppDeEscritorio:
 
     def test_desde_otra_maquina_no(self):
         assert not phantom_voice._desde_la_app(_Peticion({"origin": "tauri://localhost"}, host="192.168.1.9"))
+
+
+def test_con_siempre_todo_habla_con_esa_voz(monkeypatch):
+    voces = {"default": "nexus", "siempre": "nexus",
+             "personas": {"nexus": {}, "claude_code": {}, "hermes": {}}}
+    monkeypatch.setattr(phantom_voice, "VOICES", voces)
+    assert phantom_voice.resolve_persona("claude_code", None) == "nexus"
+    assert phantom_voice.resolve_persona("hermes", 7) == "nexus"
+    monkeypatch.setattr(phantom_voice, "VOICES", {**voces, "siempre": None})
+    assert phantom_voice.resolve_persona("claude_code", None) == "claude_code"

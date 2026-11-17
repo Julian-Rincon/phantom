@@ -160,6 +160,9 @@ def folder_alias_for_conversation(conversation_id: int) -> Optional[str]:
 
 def resolve_persona(persona: Optional[str], conversation_id: Optional[int]) -> Optional[str]:
     personas = VOICES.get("personas") or {}
+    siempre = VOICES.get("siempre")
+    if siempre in personas:  # una sola voz para todo, sin importar el agente
+        return siempre
     nexus = NEXUS_FOLDER_ALIAS.lower()
     if conversation_id is not None and nexus in personas \
             and folder_alias_for_conversation(conversation_id) == NEXUS_FOLDER_ALIAS:
