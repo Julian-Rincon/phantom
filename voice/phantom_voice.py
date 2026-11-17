@@ -104,7 +104,7 @@ CODEG_TOKEN = _load_codeg_token()
 VOICES_PATH = Path(os.environ.get("PHANTOM_VOICE_VOICES", str(Path.home() / ".config/phantom-voice/voices.json")))
 VOICES_DEFAULT_PATH = Path(__file__).with_name("voices.default.json")
 CHATTERBOX_URL = os.environ.get("PHANTOM_CHATTERBOX_URL", "http://127.0.0.1:3092")
-CHATTERBOX_TIMEOUT_S = 25.0
+CHATTERBOX_TIMEOUT_S = 60.0
 CODEG_URL = os.environ.get("PHANTOM_VOICE_CODEG_URL", "http://127.0.0.1:3080")
 NEXUS_FOLDER_ALIAS = "NEXUS"
 
@@ -173,7 +173,50 @@ def resolve_persona(persona: Optional[str], conversation_id: Optional[int]) -> O
     return default if default in personas else None
 
 
+CHATTERBOX_PIEZA = 500  # el servidor de la voz clonada rechaza más de 600 caracteres
+
+
+def partir_texto(text: str, maximo: int = CHATTERBOX_PIEZA) -> list[str]:
+    """Trozos de hasta `maximo` caracteres cortando en fin de frase (o de palabra)."""
+    import re
+    frases = [f for f in re.split(r"(?<=[.!?…:;])\s+|\n+", text.strip()) if f.strip()]
+    trozos: list[str] = []
+    actual = ""
+    for frase in frases:
+        while len(frase) > maximo:  # una frase sola demasiado larga: por palabras
+            corte = frase.rfind(" ", 0, maximo)
+            corte = corte if corte > 0 else maximo
+            if actual:
+                trozos.append(actual)
+                actual = ""
+            trozos.append(frase[:corte].strip())
+            frase = frase[corte:].strip()
+        if actual and len(actual) + 1 + len(frase) > maximo:
+            trozos.append(actual)
+            actual = frase
+        else:
+            actual = f"{actual} {frase}".strip()
+    if actual:
+        trozos.append(actual)
+    return trozos
+
+
 def chatterbox_synthesize(text: str, lang: str, persona_cfg: dict):
+    import numpy as np
+
+    trozos = partir_texto(text) or [text]
+    piezas = [_chatterbox_pieza(t, lang, persona_cfg) for t in trozos]
+    sample_rate = piezas[0][1]
+    pausa = np.zeros(int(sample_rate * 0.25), dtype=np.float32)
+    audio = []
+    for i, (a, _) in enumerate(piezas):
+        if i:
+            audio.append(pausa)
+        audio.append(a)
+    return np.concatenate(audio), sample_rate
+
+
+def _chatterbox_pieza(text: str, lang: str, persona_cfg: dict):
     import numpy as np
     import soundfile as sf
 

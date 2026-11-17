@@ -649,3 +649,11 @@ def test_con_siempre_todo_habla_con_esa_voz(monkeypatch):
     assert phantom_voice.resolve_persona("hermes", 7) == "nexus"
     monkeypatch.setattr(phantom_voice, "VOICES", {**voces, "siempre": None})
     assert phantom_voice.resolve_persona("claude_code", None) == "claude_code"
+
+
+def test_partir_texto_respeta_el_maximo_y_no_pierde_nada():
+    texto = ("Hola Julián. " * 60) + ("palabra " * 120)
+    trozos = phantom_voice.partir_texto(texto, 500)
+    assert all(0 < len(t) <= 500 for t in trozos)
+    assert " ".join(trozos).split() == texto.split()
+    assert phantom_voice.partir_texto("Corto.") == ["Corto."]
