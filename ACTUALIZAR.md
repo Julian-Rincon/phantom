@@ -12,6 +12,9 @@ Todo se hace en el worktree `../wt-merge-0430`, nunca en el checkout instalado.
 3. `bin/phantom-verificar-fork.sh <worktree>` debe decir OK. Si falta un enganche, se repone antes de seguir.
 4. `pnpm install --frozen-lockfile`, `pnpm exec tsc --noEmit`, `cargo test --lib` (necesita `out/`), `pnpm exec vitest run`.
    Vitest da timeouts falsos con la máquina cargada: lo que falle se corre solo.
+   Vitest local siempre con `--maxWorkers=2` y nunca a la vez que cargo.
+   Después de hacer push de `merge/vX`, esperar a que el CI de Phantom
+   (`.github/workflows/phantom-ci.yml`: enganches, frontend, Rust) esté en verde antes de instalar.
 5. `pnpm tauri build --no-bundle` y `cargo build --release --features server-bin --bin codeg-server`.
 6. `bin/phantom-ocupado.py` inactivo tres veces, con un minuto entre cada una.
 7. `systemd-run --user --wait --collect bin/phantom-instalar-binario.sh <worktree>/src-tauri/target/release/codeg`.
