@@ -42,6 +42,16 @@ revisar src-tauri/src/chat_channel/backends/telegram.rs "nexus_adjuntos::extraer
 revisar src-tauri/src/acp/connection.rs "phantom::chrome::agregar(" 1
 revisar src/components/voice/voice-live-overlay.tsx "useNexusTema()" 1
 revisar src/components/phantom/nexus-command-center.tsx "useNexusTema(active)" 1
+# Zonas que upstream reescribió en v0.46.0 (barra de estado, lateral, uso, migraciones)
+revisar src/components/layout/status-bar.tsx "<PhantomAttentionStatusBar />" 2
+revisar src/components/layout/status-bar.tsx "<StatusBarUsage />" 2
+revisar src/components/layout/sidebar.tsx "<PhantomActiveSection />" 1
+revisar src/components/token-usage/token-usage-page.tsx "ModelScorecardView" 2
+revisar src-tauri/src/db/migration/mod.rs "m20261028_000001_phantom_checkpoint::Migration" 1
+revisar src-tauri/src/db/migration/mod.rs "m20260924_000001_token_usage_tool_counters::Migration" 1
+revisar src/components/chat/message-input.tsx "useVoiceLive(" 1
+revisar src/components/chat/message-input.tsx "PromptHistorySearch" 2
+revisar src/components/chat/message-input.tsx "usePhantomMemoryComposer(" 1
 revisar src-tauri/tauri.conf.json '"productName": "Phantom"'
 
 if grep -qE '^(<<<<<<<|>>>>>>>)' -r "$raiz/src" "$raiz/src-tauri/src" "$raiz/src-tauri/tauri.conf.json" 2>/dev/null; then
