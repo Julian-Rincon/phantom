@@ -14,6 +14,7 @@ import sys
 import time
 
 QUIET = 300  # segundos sin escribir en la transcripción
+COLGADO = 2 * 3600  # un turno "abierto" sin escribir ni hijos en 2 h está colgado, no trabajando
 IGNORA = ("mcp serve", "mcp-serve", "nexus-mcp", "codeg-mcp", "unity mcp", "/unity",
           "hermes-agent", "hermes mcp", "ollama", "llama-server", "tail -n +1 -f", "tail -f",
           "voicestudio-mcp", "mcp_shim")
@@ -74,7 +75,10 @@ for pid, _, args in agentes:
             ultimo = "fin" if txt.startswith("[Request interrupted by user") else "en turno"
             break
     if ultimo == "en turno":
-        ocupado.append(f"{sid[:8]} en turno")
+        if edad > COLGADO and not extra:
+            print(f"(ignoro {sid[:8]}: turno colgado, sin escribir hace {int(edad // 3600)} h)", file=sys.stderr)
+        else:
+            ocupado.append(f"{sid[:8]} en turno")
 
 print("; ".join(ocupado) or f"inactivo ({len(agentes)} agentes conectados)")
 sys.exit(1 if ocupado else 0)
