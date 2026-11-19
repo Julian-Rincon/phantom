@@ -52,6 +52,12 @@ revisar src-tauri/src/db/migration/mod.rs "m20260924_000001_token_usage_tool_cou
 revisar src/components/chat/message-input.tsx "useVoiceLive(" 1
 revisar src/components/chat/message-input.tsx "PromptHistorySearch" 2
 revisar src/components/chat/message-input.tsx "usePhantomMemoryComposer(" 1
+# Estilo NEXUS (rojo #ff2020 sobre negro) como preset propio y por defecto
+revisar src/lib/theme-presets.ts '"nexus",' 1
+revisar src/lib/theme-presets.ts 'DEFAULT_THEME_COLOR: ThemeColor = "nexus"' 1
+revisar src/app/globals.css '[data-theme="nexus"].dark {' 2
+revisar src/components/phantom/attention-status-bar.tsx "useMigrarEstiloNexus()" 1
+revisar src/components/voice/voice-galaxy-orb.tsx "readBackgroundColor()" 2
 revisar src-tauri/tauri.conf.json '"productName": "Phantom"'
 
 if grep -qE '^(<<<<<<<|>>>>>>>)' -r "$raiz/src" "$raiz/src-tauri/src" "$raiz/src-tauri/tauri.conf.json" 2>/dev/null; then
