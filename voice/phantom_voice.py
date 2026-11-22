@@ -173,7 +173,12 @@ def resolve_persona(persona: Optional[str], conversation_id: Optional[int]) -> O
     return default if default in personas else None
 
 
-CHATTERBOX_PIEZA = 500  # el servidor de la voz clonada rechaza más de 600 caracteres
+# Chatterbox se enreda con trozos largos (repite tokens y mete ruido o silencio): ~200 caracteres
+# es lo que aguanta bien. El servidor rechaza más de 600.
+CHATTERBOX_PIEZA = 200
+# Español hablado ≈ 15 caracteres/s. Un trozo que dura mucho más (balbuceo, ruido) o mucho menos
+# (se cortó) se vuelve a generar y, si sigue mal, se parte en dos.
+CHARS_POR_S = 15.0
 
 
 def partir_texto(text: str, maximo: int = CHATTERBOX_PIEZA) -> list[str]:
@@ -183,8 +188,9 @@ def partir_texto(text: str, maximo: int = CHATTERBOX_PIEZA) -> list[str]:
     trozos: list[str] = []
     actual = ""
     for frase in frases:
-        while len(frase) > maximo:  # una frase sola demasiado larga: por palabras
-            corte = frase.rfind(" ", 0, maximo)
+        while len(frase) > maximo:  # una frase sola demasiado larga: por comas o palabras
+            corte = frase.rfind(", ", maximo // 2, maximo)
+            corte = corte + 1 if corte > 0 else frase.rfind(" ", 0, maximo)
             corte = corte if corte > 0 else maximo
             if actual:
                 trozos.append(actual)
@@ -201,11 +207,29 @@ def partir_texto(text: str, maximo: int = CHATTERBOX_PIEZA) -> list[str]:
     return trozos
 
 
+def duracion_sana(texto: str, segundos: float) -> bool:
+    esperado = len(texto) / CHARS_POR_S
+    return 0.4 * esperado <= segundos <= 1.8 * esperado + 1.5
+
+
+def _pieza_sana(text: str, lang: str, persona_cfg: dict, intentos: int = 2, partir: bool = True):
+    """Genera un trozo y revisa que dure lo que debería; si no, reintenta y luego lo parte."""
+    for _ in range(intentos):
+        audio, sr = _chatterbox_pieza(text, lang, persona_cfg)
+        if duracion_sana(text, len(audio) / sr):
+            return [(audio, sr)]
+        logger.warning("chatterbox: duración rara (%.1fs para %d caracteres), reintento", len(audio) / sr, len(text))
+    mitades = partir_texto(text, max(40, len(text) // 2 + 10)) if partir and len(text) > 60 else []
+    if len(mitades) > 1:
+        return [p for m in mitades for p in _pieza_sana(m, lang, persona_cfg, intentos=2, partir=False)]
+    return [(audio, sr)]  # sin más opciones: lo último que salió
+
+
 def chatterbox_synthesize(text: str, lang: str, persona_cfg: dict):
     import numpy as np
 
     trozos = partir_texto(text) or [text]
-    piezas = [_chatterbox_pieza(t, lang, persona_cfg) for t in trozos]
+    piezas = [p for t in trozos for p in _pieza_sana(t, lang, persona_cfg)]
     sample_rate = piezas[0][1]
     pausa = np.zeros(int(sample_rate * 0.25), dtype=np.float32)
     audio = []

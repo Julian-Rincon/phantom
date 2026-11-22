@@ -12,16 +12,21 @@ TERMS = {
     "merge": "merch", "worktree": "uórk tri", "bug": "bag", "debug": "dibág",
     "online": "onláin", "update": "ápdeit", "framework": "fréimuork", "dashboard": "dáshbord",
     "feedback": "fídbak", "workflow": "uórkflou", "prompt": "prómpt", "token": "tóken",
+    "python": "páizon", "readme": "rídmi", "multi-query": "multi cuéri", "multiquery": "multi cuéri",
+    "linkedin": "línkedin", "whatsapp": "guatsap", "gmail": "yi meil", "openai": "open ei ai",
+    "key": "llave", "gemma": "yema",
 }
 ACRONYMS = {
     "PLN": "pe ele ene", "API": "a pe i", "GPU": "ge pe u", "CPU": "ce pe u",
     "VM": "ve eme", "URL": "u erre ele", "PDF": "pe de efe", "MCP": "eme ce pe",
-    "RAM": "ram", "SSH": "ese ese ache", "QA": "cu a",
+    "RAM": "ram", "SSH": "ese ese ache", "QA": "cu a", "AWS": "a doble u ese", "GCP": "ye ce pe",
+    "IA": "i a", "AI": "ei ai", "CLI": "ce ele i", "CI": "ce i", "EC2": "e ce dos",
 }
 NAMES = {"Julian": "Julián"}
 
 _term_re = re.compile(r"\b(" + "|".join(sorted(map(re.escape, TERMS), key=len, reverse=True)) + r")\b", re.I)
 _acr_re = re.compile(r"\b(" + "|".join(map(re.escape, ACRONYMS)) + r")\b")
+_version_re = re.compile(r"\b\d+\.\d{1,2}(?:\.\d+)?\b(?!\.\d)")  # 3.14, 0.47.0; no 2.100 (miles)
 _name_re = re.compile(r"\b(" + "|".join(map(re.escape, NAMES)) + r")\b")
 
 
@@ -29,5 +34,6 @@ def normalize_for_speech(text: str, lang: str) -> str:
     if lang != "es":
         return text
     text = _name_re.sub(lambda m: NAMES[m.group(1)], text)
+    text = _version_re.sub(lambda m: " punto ".join(m.group(0).split(".")), text)  # 3.14 → 3 punto 14
     text = _acr_re.sub(lambda m: ACRONYMS[m.group(1)], text)
     return _term_re.sub(lambda m: TERMS[m.group(1).lower()], text)

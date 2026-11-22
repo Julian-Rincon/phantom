@@ -657,3 +657,31 @@ def test_partir_texto_respeta_el_maximo_y_no_pierde_nada():
     assert all(0 < len(t) <= 500 for t in trozos)
     assert " ".join(trozos).split() == texto.split()
     assert phantom_voice.partir_texto("Corto.") == ["Corto."]
+
+
+def test_duracion_sana_detecta_balbuceo_y_cortes():
+    assert phantom_voice.duracion_sana("x" * 150, 10.0)
+    assert not phantom_voice.duracion_sana("x" * 150, 25.0)   # ruido / repetición
+    assert not phantom_voice.duracion_sana("x" * 150, 2.0)    # se cortó
+
+
+def test_pieza_mala_se_reintenta_y_luego_se_parte(monkeypatch):
+    import numpy as np
+    llamadas = []
+
+    def fake(text, lang, cfg):
+        llamadas.append(text)
+        seg = 30.0 if len(llamadas) <= 2 else len(text) / 15  # las 2 primeras salen con ruido
+        return np.zeros(int(seg * 100), dtype=np.float32), 100
+
+    monkeypatch.setattr(phantom_voice, "_chatterbox_pieza", fake)
+    texto = "Primera parte de la frase, con una coma en el medio. Segunda frase bastante larga aquí."
+    piezas = phantom_voice._pieza_sana(texto, "es", {})
+    assert llamadas[0] == llamadas[1] == texto and len(piezas) >= 2
+
+
+def test_partir_texto_corta_en_comas_las_frases_largas():
+    frase = ", ".join(["un pedazo de texto mediano"] * 12) + "."
+    trozos = phantom_voice.partir_texto(frase, 100)
+    assert all(len(t) <= 100 for t in trozos)
+    assert all(t.endswith(",") or t.endswith(".") for t in trozos)
