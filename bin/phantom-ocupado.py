@@ -17,7 +17,8 @@ QUIET = 300  # segundos sin escribir en la transcripción
 COLGADO = 2 * 3600  # un turno "abierto" sin escribir ni hijos en 2 h está colgado, no trabajando
 IGNORA = ("mcp serve", "mcp-serve", "nexus-mcp", "codeg-mcp", "unity mcp", "/unity",
           "hermes-agent", "hermes mcp", "ollama", "llama-server", "tail -n +1 -f", "tail -f",
-          "voicestudio-mcp", "mcp_shim")
+          "voicestudio-mcp", "mcp_shim", "convertir-mcp", "mcp-server-linkedin", ".linkedin-mcp/",
+          "/archive-v0/")  # servidores MCP de uvx: viven lo que dura la sesión
 
 
 def salida(*cmd):
